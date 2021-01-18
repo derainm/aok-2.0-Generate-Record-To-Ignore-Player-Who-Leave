@@ -53,8 +53,53 @@ namespace Generate_Record_To_Ignore_Player_Who_Leave
             openFileDialog.Filter = "Out of Sync Save -  (*.mgs)|*.mgs";
             if (openFileDialog.ShowDialog() != DialogResult.OK)
                 return;
+            Cursor.Current = Cursors.WaitCursor;
             this.restoreGame = openFileDialog.FileName;
+            this.RestoreFile = File.ReadAllBytes(this.restoreGame);
+            if (comboBoxPlayerSelection.Items.Count >= 1)
+                comboBoxPlayerSelection.Items.Clear();
+            //beging player 
+            //0x670
+            //0xA0
+            uint num1 = 0;
+            uint i = 0x670;
+            List<byte> lstName = new List<byte>();
+            for (;;)
+            {
+                byte val = RestoreFile[i];
 
+                if (RestoreFile[i] != (byte)0)
+                {
+                    lstName.Clear();
+                    uint j = i + 4;
+                    for (; ; )
+                    {
+
+                        lstName.Add(RestoreFile[j]);
+                        if (RestoreFile[j] == (byte)0)
+                            break;
+                        j++;
+                    }
+                    ComboboxItem item = new ComboboxItem();
+                    string playerName = System.Text.Encoding.ASCII.GetString(lstName.ToArray());
+                    item.Text = playerName;
+                    item.Value = RestoreFile[i];
+                    comboBoxPlayerSelection.Items.Add(item);
+
+                    num1++;
+                    i = 0x670 + num1 * 0xA0;
+                    
+
+
+                }
+                if (RestoreFile[i] == (byte)0)
+                {
+                    break;
+                }
+                if (num1 == 8)
+                 break;
+            }
+            Cursor.Current = Cursors.Default;
         }
 
         private void buttonGenerateFile_Click(object sender, EventArgs e)
@@ -64,29 +109,31 @@ namespace Generate_Record_To_Ignore_Player_Who_Leave
                 MessageBox.Show("Browser resore file !");
                 return;
             }
-            if(string.IsNullOrEmpty(this.textBoxPlayerName.Text))
+
+            if(comboBoxPlayerSelection.SelectedIndex==-1)
             {
                 MessageBox.Show("set player name !");
                 return;
             }
-            if (this.numericUpDown1.Value == 0)
-            {
-                MessageBox.Show("set player position !");
-                return;
-            }
+            Cursor.Current = Cursors.WaitCursor;
+
             if (File.Exists(this.restoreGame + "__"))
                 File.Delete(this.restoreGame + "__");
             File.Copy(this.restoreGame, this.restoreGame + "__");
-            this.RestoreFile = File.ReadAllBytes(this.restoreGame + "__");
+
             //player Name
-            byte[] baPlayerName = Encoding.Default.GetBytes(this.textBoxPlayerName.Text);
+            byte[] baPlayerName = Encoding.Default.GetBytes(((ComboboxItem)comboBoxPlayerSelection.SelectedItem).Text);// this.textBoxPlayerName.Text);
             var hexPlayerName = BitConverter.ToString(baPlayerName).Replace("-","");
             Injection( 0x508, hexPlayerName);
             //player position
-            string playerpos = this.numericUpDown1.Text.Trim().PadLeft(2,'0');
+            //string playerpos = this.numericUpDown1.Text.Trim().PadLeft(2,'0');
+            string playerpos = ((ComboboxItem)comboBoxPlayerSelection.SelectedItem).Value.ToString().Trim().PadLeft(2,'0');
             Injection( 0x590, playerpos);
             Injection( 0x594, playerpos);
             File.WriteAllBytes(this.restoreGame + "__", this.RestoreFile);
+            MessageBox.Show("Done, file generated "+ this.restoreGame + "__");
+            System.Diagnostics.Process.Start(Path.GetDirectoryName(this.restoreGame));
+            Cursor.Current = Cursors.Default;
         }
     }
 }
